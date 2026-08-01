@@ -1,0 +1,16 @@
+{
+  "name": "Asystent Trasy TCL",
+  "short_name": "Asystent TCL",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#E31837",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
