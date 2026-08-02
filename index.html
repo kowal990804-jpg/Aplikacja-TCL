@@ -255,7 +255,7 @@
     </table>
     
     <div class="no-print" id="pdf-buttons-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-        <button class="btn btn-blue" onclick="downloadPDF()">📄 Pobierz raport jako PDF</button>
+        <button class="btn btn-blue" onclick="downloadPDF()">⬇️ Pobierz raport PDF</button>
     </div>
 </div>
 
@@ -334,7 +334,6 @@
     }
 
     function showUploadForm() {
-        // WYMUSZONE CZYSZCZENIE SESJI - zapobiega blokowaniu się na 1 profilu
         localStorage.removeItem('tcl_my_stores');
         localStorage.removeItem('tcl_current_user');
         localStorage.removeItem('tcl_base_location');
@@ -400,7 +399,6 @@
         document.getElementById('geo-result').style.color = "var(--text-muted)";
         
         try {
-            // BEZPOŚREDNIE POŁĄCZENIE Z NOMINATIM
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
             const data = await res.json();
             
@@ -814,7 +812,7 @@
             
             let mapLink = '';
             if (store.__LATITUDE) {
-                let geoLink = `geo:0,0?q=${store.__LATITUDE},${store.__LONGITUDE}(${encodeURIComponent(store["Store Chain"] + ' ' + store.CITY)})`;
+                let geoLink = `geo:${store.__LATITUDE},${store.__LONGITUDE}?q=${store.__LATITUDE},${store.__LONGITUDE}(${encodeURIComponent(store["Store Chain"] + ' ' + store.CITY)})`;
                 
                 mapLink = `
                 <div style="margin-top:8px;">
@@ -1285,6 +1283,31 @@
             window.reportPolylines.push(pl);
         });
     }
+
+    // === CZYSTY ORYGINALNY MECHANIZM PDF ===
+    window.downloadPDF = function() {
+        window.scrollTo(0,0);
+        const element = document.getElementById('view-reports');
+        const buttonsContainer = document.getElementById('pdf-buttons-container');
+        buttonsContainer.style.display = 'none';
+        if(window.showToast) showToast("Trwa generowanie PDF... ⏳");
+
+        const userName = (localStorage.getItem('tcl_current_user') || 'TCL').replace(/\s+/g, '_');
+        const selectedMonth = document.getElementById('report-month').value || 'Raport';
+
+        const opt = {
+            margin:       [10, 10, 10, 10], 
+            filename:     `Raport_Wizyt_${selectedMonth}_${userName}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, scrollY: 0, windowHeight: element.scrollHeight + 50 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['css', 'legacy'] } 
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => { 
+            buttonsContainer.style.display = 'flex'; 
+        });
+    };
 
     window.loadReports = function() {
         const selectedMonth = document.getElementById('report-month').value;
