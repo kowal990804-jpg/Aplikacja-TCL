@@ -580,12 +580,33 @@
             return rA - rB;
         });
 
+        const targetMonth = selectedDate.substring(0, 7);
+
         let html = '';
         filtered.forEach(s => {
-            html += `<div class="search-item" onclick="addStore('${s.STORE_NAME}')">
+            let lastVisitStr = localStorage.getItem('tcl_visit_' + s.STORE_NAME);
+            let displayVisit = lastVisitStr ? lastVisitStr : 'Brak';
+            let isVisitedThisMonth = lastVisitStr && lastVisitStr.substring(0, 7) === targetMonth;
+
+            let bgColor = isVisitedThisMonth ? 'white' : '#fef2f2';
+            let titleColor = isVisitedThisMonth ? 'var(--text-main)' : '#ef4444';
+            let dateColor = isVisitedThisMonth ? 'var(--success)' : '#ef4444';
+            let borderColor = isVisitedThisMonth ? 'transparent' : '#ef4444';
+            let badgeBg = isVisitedThisMonth ? '#e2e8f0' : '#fee2e2';
+            let badgeColor = isVisitedThisMonth ? 'var(--text-main)' : '#ef4444';
+
+            html += `<div class="search-item" style="background: ${bgColor}; border-left: 3px solid ${borderColor};" onclick="addStore('${s.STORE_NAME}')">
                         <div style="width: 100%;">
-                            <strong>${s["Store Chain"]}</strong> - ${s.CITY} <span style="font-size: 12px; color: #64748b; font-weight: normal;">(${s.street || ''})</span>
-                            <span style="float: right; font-size: 10px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Kat. ${s["Store classification"]}</span>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong style="color: ${titleColor};">${s["Store Chain"]}</strong> - <span style="color: ${titleColor};">${s.CITY}</span>
+                                </div>
+                                <span style="font-size: 10px; background: ${badgeBg}; color: ${badgeColor}; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Kat. ${s["Store classification"]}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                                <span style="font-size: 11px; color: #64748b;">${s.street || ''}</span>
+                                <span style="font-size: 11px; color: #64748b;">Ost. wizyta: <b style="color: ${dateColor};">${displayVisit}</b></span>
+                            </div>
                         </div>
                      </div>`;
         });
