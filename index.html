@@ -241,7 +241,7 @@
     
     <h3 style="font-size: 15px;">Wizyty w tym miesiącu</h3>
     <table id="visit-table">
-        <thead><tr><th>Sklep / Miasto</th><th>Kat.</th><th>Dni wizyt</th></tr></thead>
+        <thead><tr><th>Sklep / Miasto</th><th>Kat.</th><th>Daty wizyt</th></tr></thead>
         <tbody></tbody>
     </table>
     
@@ -1280,7 +1280,6 @@
         });
     }
 
-    // === CZYSTY ORYGINALNY MECHANIZM PDF ===
     window.downloadPDF = function() {
         window.scrollTo(0,0);
         const element = document.getElementById('view-reports');
@@ -1323,10 +1322,13 @@
                 dist += getDistanceSafe(items[items.length-1].__LATITUDE, items[items.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
                 monthKm += dist * 1.2;
                 
+                // FORMATOWANIE DATY NA DD.MM.YYYY
+                let fullDate = d.split('-').reverse().join('.');
+                
                 items.forEach(store => {
                     if(!visitedStores[store.STORE_NAME]) visitedStores[store.STORE_NAME] = [];
-                    if(!visitedStores[store.STORE_NAME].includes(d.split('-')[2])) {
-                        visitedStores[store.STORE_NAME].push(d.split('-')[2]); 
+                    if(!visitedStores[store.STORE_NAME].includes(fullDate)) {
+                        visitedStores[store.STORE_NAME].push(fullDate); 
                     }
                 });
             }
@@ -1337,7 +1339,6 @@
         const tbody = document.querySelector('#visit-table tbody');
         tbody.innerHTML = '';
         
-        // Wyświetlanie WSZYSTKICH sklepów z bazy, posortowanych alfabetycznie
         let allStoresSorted = [...stores].sort((a,b) => a.CITY.localeCompare(b.CITY));
         
         allStoresSorted.forEach(s => {
