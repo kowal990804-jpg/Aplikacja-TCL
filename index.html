@@ -98,6 +98,7 @@
         th { background-color: var(--bg); color: var(--text-muted); font-size: 10px; text-transform: uppercase; }
         tr { page-break-inside: avoid; }
 
+        /* TOAST - POWIADOMIENIA */
         #toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 14px 24px; border-radius: 12px; z-index: 9999; font-size: 14px; font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: opacity 0.3s; opacity: 0; pointer-events: none; text-align: center; width: max-content; max-width: 90%; }
         
         @media print { body { padding-bottom: 0; background: white; } .no-print { display: none !important; } #view-reports { display: block; position: absolute; top:0; left:0; width:100%; padding:0; } }
@@ -105,13 +106,13 @@
 </head>
 <body>
 
-<!-- WIDOK ŁADOWANIA / LOGOWANIA (Zawsze widoczny na start, żeby zapobiec złym logowaniom) -->
-<div id="login-screen" style="display: none;">
+<!-- WIDOK ŁADOWANIA / LOGOWANIA (Zawsze widoczny na start) -->
+<div id="login-screen" style="display: flex;">
     <div class="login-card">
         <h2 style="margin-top:0; margin-bottom: 8px; color: var(--primary);">Asystent Trasy</h2>
         
         <div id="login-new">
-            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">Wybierz pracownika i zatwierdź swoją bazę.</p>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">Wybierz swój profil z listy, aby pobrać bazę sklepów.</p>
             
             <div style="text-align: left; padding-top: 5px;">
                 <label style="font-size: 13px; font-weight: bold; display: block;">1. Wybierz siebie z listy:</label>
@@ -124,7 +125,7 @@
                         <button class="btn btn-blue" style="width: auto; padding: 0 15px; flex-shrink: 0;" onclick="geocodeAddress()" title="Szukaj miasta">🔍</button>
                         <button class="btn btn-outline" style="width: auto; padding: 0 15px; flex-shrink: 0; border: 2px solid var(--border);" onclick="getGPS()" title="Użyj mojej lokalizacji GPS">📍</button>
                     </div>
-                    <div id="geo-result" style="font-size: 11px; margin-top: 8px; font-weight: 600;">Opcjonalne, ale zalecane. Kliknij 📍 aby użyć GPS.</div>
+                    <div id="geo-result" style="font-size: 11px; margin-top: 8px; font-weight: 600; color: var(--text-muted);">Opcjonalne, ale zalecane. Kliknij 📍 aby użyć GPS.</div>
                 </div>
 
                 <button class="btn" onclick="loginAsMerchandiser()">Wejdź do aplikacji</button>
@@ -747,7 +748,7 @@
                 currentRouteDistance += getDistanceSafe(bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
             }
 
-            // ODWRACANIE TRASY, ABY ZACZĄĆ OD NAJDALSZEGO PUNKTU
+            // ODWRÓCENIE TRASY - ZACZYNAMY OD NAJDALSZEGO PUNKTU
             if (bestRoute.length > 1) {
                 let distFirst = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[0].__LATITUDE, bestRoute[0].__LONGITUDE);
                 let distLast = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE);
@@ -773,8 +774,8 @@
         
         let fullMapsUrl = "";
         if (bestRoute.length > 0) {
-            let waypoints = bestRoute.map(s => `${s.__LATITUDE},${s.__LONGITUDE}`).join('/');
-            fullMapsUrl = `https://www.google.com/maps/dir/${BASE_LOCATION.lat},${BASE_LOCATION.lng}/${waypoints}/${BASE_LOCATION.lat},${BASE_LOCATION.lng}/`;
+            let waypoints = bestRoute.map(s => `${s.__LATITUDE},${s.__LONGITUDE}`).join('%7C');
+            fullMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${BASE_LOCATION.lat},${BASE_LOCATION.lng}&destination=${BASE_LOCATION.lat},${BASE_LOCATION.lng}&waypoints=${waypoints}&travelmode=driving`;
         }
 
         let html = `
@@ -794,7 +795,7 @@
         if (bestRoute.length > 0) {
             html += `
             <div style="margin-bottom: 24px; display:flex; flex-direction:column; gap:8px;">
-                <button onclick="window.open('${fullMapsUrl}', '_blank')" class="btn btn-blue" style="padding: 14px; font-size: 15px;">🗺️ Otwórz całą trasę w Google Maps</button>
+                <a href="${fullMapsUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-blue" style="text-decoration: none; display: block; text-align: center; box-sizing: border-box; padding: 14px; font-size: 15px;">🗺️ Otwórz całą trasę w Google Maps</a>
                 <div style="text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 2px;">Trasa od najdalszego punktu w kierunku domu.</div>
             </div>`;
         }
@@ -809,10 +810,9 @@
             let mapLink = '';
             if (store.__LATITUDE) {
                 let singleMapUrl = `https://www.google.com/maps/dir/?api=1&destination=${store.__LATITUDE},${store.__LONGITUDE}`;
-                
                 mapLink = `
                 <div style="margin-top:8px;">
-                    <button onclick="window.open('${singleMapUrl}', '_blank')" class="btn" style="width:100%; background:#f8fafc; color:#1e293b; border:2px solid #cbd5e1; padding:10px; border-radius:8px; font-weight:600; font-size:13px;">📍 Uruchom Nawigację (do tego punktu)</button>
+                    <a href="${singleMapUrl}" target="_blank" rel="noopener noreferrer" class="btn" style="text-decoration:none; display:block; text-align:center; background:#f8fafc; color:#1e293b; border:2px solid #cbd5e1; padding:10px; border-radius:8px; font-weight:600; font-size:13px;">📍 Uruchom Nawigację (do tego punktu)</a>
                 </div>`;
             }
             
@@ -1280,6 +1280,7 @@
         });
     }
 
+    // === CZYSTY ORYGINALNY MECHANIZM PDF ===
     window.downloadPDF = function() {
         window.scrollTo(0,0);
         const element = document.getElementById('view-reports');
