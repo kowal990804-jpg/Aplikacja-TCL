@@ -83,7 +83,8 @@
         .btn-outline { background: white; color: var(--text-main); border: 2px solid var(--border); box-shadow: none; }
         
         .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card-bg); display: flex; justify-content: space-around; padding: 8px 0 12px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100; }
-        .nav-item { text-align: center; font-size: 8px; font-weight: 600; color: var(--text-muted); cursor: pointer; width: 12.5%; }
+        /* 7 elementów nawigacji (100% / 7 ≈ 14.28%) */
+        .nav-item { text-align: center; font-size: 8px; font-weight: 600; color: var(--text-muted); cursor: pointer; width: 14.28%; }
         .nav-item.active { color: var(--primary); }
         .nav-icon { font-size: 18px; margin-bottom: 4px; display: block; }
         
@@ -160,7 +161,7 @@
     </div>
 </div>
 
-<!-- WIDOK 2: Trasa -->
+<!-- WIDOK 2: Trasa (Zarządzanie Trasą i Historiami) -->
 <div class="container" id="view-route">
     <div class="calendar-grid" id="calendar-strip-route"></div>
     <div id="route-content">
@@ -250,19 +251,7 @@
     </div>
 </div>
 
-<!-- WIDOK 8: Grafik -->
-<div class="container" id="view-history">
-    <h2 style="font-size: 18px; margin-top:0;">Grafik wizyt</h2>
-    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Wybierz z kalendarza dowolną datę z przeszłości, aby zobaczyć odwiedzone sklepy i usunąć ewentualne pomyłki z raportów.</p>
-    
-    <input type="date" id="history-date" class="search-input" style="margin-bottom: 20px; padding: 14px;" onchange="loadDayHistory()">
-    
-    <div id="history-content">
-        <div style="text-align:center; color: var(--text-muted); margin-top: 20px;">Wybierz datę powyżej.</div>
-    </div>
-</div>
-
-<!-- Nawigacja Dolna -->
+<!-- Nawigacja Dolna (7 Elementów) -->
 <div class="bottom-nav no-print">
     <div class="nav-item active" onclick="switchTab('view-plan', this)"><span class="nav-icon">📅</span>Plan</div>
     <div class="nav-item" onclick="switchTab('view-route', this)"><span class="nav-icon">🚗</span>Trasa</div>
@@ -271,7 +260,6 @@
     <div class="nav-item" onclick="switchTab('view-overdue', this)"><span class="nav-icon">⏰</span>Zaległe</div>
     <div class="nav-item" onclick="switchTab('view-budget', this)"><span class="nav-icon">💳</span>Budżet</div>
     <div class="nav-item" onclick="switchTab('view-reports', this)"><span class="nav-icon">📊</span>Raport</div>
-    <div class="nav-item" onclick="switchTab('view-history', this)"><span class="nav-icon">📜</span>Grafik</div>
 </div>
 
 <script>
@@ -286,8 +274,8 @@
     window.tempBaseName = "";
 
     window.onload = function() {
-        showUploadForm(); // ZAWSZE pokazujemy ten ekran na start
-
+        showUploadForm(); 
+        
         if (!localStorage.getItem('tcl_demo_history_loaded')) {
             localStorage.setItem('tcl_demo_history_loaded', 'true');
         }
@@ -547,7 +535,7 @@
         if(isFinalized) {
             searchInput.disabled = true;
             searchInput.value = '';
-            searchInput.placeholder = "Dzień zakończony. Usuń w Grafikach, by edytować.";
+            searchInput.placeholder = "Dzień zakończony. Usuń w Trasach, by edytować.";
         } else {
             searchInput.disabled = false;
             searchInput.value = '';
@@ -850,7 +838,9 @@
         });
 
         if (isFinalized) {
-            html += `</div><div style="text-align:center; padding: 16px; color: var(--success); font-weight: bold; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">✅ Dzień został już zapisany i zakończony.</div>`;
+            html += `</div>
+            <div style="text-align:center; padding: 16px; color: var(--success); font-weight: bold; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 12px;">✅ Dzień został już zapisany i zakończony.</div>
+            <button class="btn" style="background: #ef4444; font-size: 14px;" onclick="deleteDayHistory(this, '${selectedDate}')">🗑️ Odblokuj dzień i usuń wizyty</button>`;
         } else {
             html += `</div><button id="finishBtn" class="btn btn-success no-print" onclick="finishRoute(this)">✅ Zakończ dzień (Zapisz w raportach)</button>`;
         }
@@ -931,7 +921,7 @@
             btn.style.background = "#f59e0b";
             deleteDayTimeout = setTimeout(() => {
                 if(btn) {
-                    btn.innerText = "🗑️ Usuń zapisane wizyty z tego dnia";
+                    btn.innerText = "🗑️ Odblokuj dzień i usuń wizyty";
                     btn.style.background = "#ef4444";
                 }
             }, 3500);
@@ -941,6 +931,34 @@
         clearTimeout(deleteDayTimeout);
         
         let historyLog = JSON.parse(localStorage.getItem('tcl_history_log') || '{}');
+        const items = historyLog[dateStr];
+        if(!items) return; 
+        
+        const storeItems = items.filter(i => i.type === 'store').map(i => stores.find(s => s.STORE_NAME === i.id)).filter(s => s);
+        if(storeItems.length > 0) {
+            let currentRouteDistance = 0;
+            let bestRoute = storeItems;
+            if (storeItems.length <= 6) {
+                const permutations = getPermutations(storeItems);
+                currentRouteDistance = Infinity;
+                permutations.forEach(route => {
+                    let dist = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, route[0].__LATITUDE, route[0].__LONGITUDE);
+                    for(let i=0; i<route.length-1; i++) dist += getDistanceSafe(route[i].__LATITUDE, route[i].__LONGITUDE, route[i+1].__LATITUDE, route[i+1].__LONGITUDE);
+                    dist += getDistanceSafe(route[route.length-1].__LATITUDE, route[route.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
+                    if (dist < currentRouteDistance) { currentRouteDistance = dist; bestRoute = route; }
+                });
+            } else {
+                currentRouteDistance = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[0].__LATITUDE, bestRoute[0].__LONGITUDE);
+                for(let i=0; i<bestRoute.length-1; i++) currentRouteDistance += getDistanceSafe(bestRoute[i].__LATITUDE, bestRoute[i].__LONGITUDE, bestRoute[i+1].__LATITUDE, bestRoute[i+1].__LONGITUDE);
+                currentRouteDistance += getDistanceSafe(bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
+            }
+            let roadDistance = currentRouteDistance * 1.2;
+            let currentTotalKm = parseFloat(localStorage.getItem('tcl_total_km')) || 0;
+            currentTotalKm -= roadDistance;
+            if(currentTotalKm < 0) currentTotalKm = 0;
+            localStorage.setItem('tcl_total_km', currentTotalKm.toFixed(1));
+        }
+
         delete historyLog[dateStr];
         localStorage.setItem('tcl_history_log', JSON.stringify(historyLog));
 
@@ -983,62 +1001,7 @@
         localStorage.setItem('tcl_routes_' + ym, JSON.stringify(monthlyRoutes));
 
         showToast("Odblokowano dzień. Zaktualizowano raport.");
-        loadDayHistory(); 
-        
-        if (dateStr === selectedDate) {
-            selectDate(selectedDate); 
-        }
-    }
-
-    window.loadDayHistory = function() {
-        const dateStr = document.getElementById('history-date').value;
-        const contentDiv = document.getElementById('history-content');
-        
-        if(!dateStr) {
-            contentDiv.innerHTML = '<div style="text-align:center; color: var(--text-muted); margin-top: 20px;">Wybierz datę powyżej.</div>';
-            return;
-        }
-        
-        let historyLog = JSON.parse(localStorage.getItem('tcl_history_log') || '{}');
-        let items = historyLog[dateStr] || schedules[dateStr] || [];
-        
-        if(items.length === 0) {
-            contentDiv.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-muted);">Brak zapisanych wizyt i zadań w dniu <b>${dateStr}</b>.</div>`;
-            return;
-        }
-        
-        let isFinalized = historyLog[dateStr] ? '<span style="color: var(--success); font-size: 11px; float: right; margin-top: 2px;">✅ Dzień zatwierdzony</span>' : '<span style="color: var(--primary); font-size: 11px; float: right; margin-top: 2px;">⏳ Planowany (niezatwierdzony)</span>';
-        
-        let html = `<h3 style="font-size: 15px; margin-bottom: 16px;">Wyniki dla: ${dateStr} ${isFinalized}</h3>`;
-        
-        items.forEach(item => {
-            if(item.type === 'store') {
-                const s = stores.find(x => x.STORE_NAME === item.id);
-                if(s) {
-                    html += `
-                    <div class="plan-item" style="border-left-color: ${historyLog[dateStr] ? '#10b981' : 'var(--primary)'};">
-                        <div class="plan-item-info">
-                            <div class="plan-item-title">${s["Store Chain"]} - ${s.CITY} <span style="font-size: 12px; color: #64748b; font-weight: normal;">(${s.street || ''})</span></div>
-                            <div class="plan-item-sub">Kat. ${s["Store classification"]}</div>
-                        </div>
-                    </div>`;
-                }
-            } else {
-                html += `
-                <div class="plan-item custom-task" style="border-left-color: ${historyLog[dateStr] ? '#10b981' : 'var(--primary)'};">
-                    <div class="plan-item-info">
-                        <div class="plan-item-title">${item.name}</div>
-                        <div class="plan-item-sub">Zadanie dodatkowe</div>
-                    </div>
-                </div>`;
-            }
-        });
-        
-        if(historyLog[dateStr]) {
-            html += `<button class="btn" style="background: #ef4444; margin-top: 16px; font-size: 14px;" onclick="deleteDayHistory(this, '${dateStr}')">🗑️ Usuń zapisane wizyty z tego dnia</button>`;
-        }
-        
-        contentDiv.innerHTML = html;
+        selectDate(dateStr); 
     }
 
     function initLineupSelect() {
@@ -1396,13 +1359,6 @@
         if(viewId === 'view-overdue') loadOverdue();
         if(viewId === 'view-budget') loadBudget();
         if(viewId === 'view-map') setTimeout(initMap, 150);
-        if(viewId === 'view-history') {
-            if(!document.getElementById('history-date').value) {
-                const d = new Date();
-                document.getElementById('history-date').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            }
-            loadDayHistory();
-        }
         window.scrollTo(0,0);
     }
 </script>
