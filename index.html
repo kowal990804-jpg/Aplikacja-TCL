@@ -1049,12 +1049,20 @@
         }
 
         let html = '';
+        
+        // ZAAKTUALIZOWANE KATEGORIE TV (ROZBITE GRUPY)
         const tvCategories = [
             { category: "Seria S5L", models: ["32S5L", "40S5L", "43S5L", "50S5L"] },
-            { category: "Seria P6L / P7L / P8L", models: ["55P6L", "65P6L", "75P6L", "43P7L", "50P7L", "55P7L", "65P7L", "75P7L", "85P7L", "55P8L", "65P8L", "75P8L", "85P8L", "98P8L"] },
-            { category: "Seria A400", models: ["55A400", "65A400", "75A400", "85A400", "98A400", "55A400U", "65A400U", "75A400U", "85A400U", "98A400U", "32A400PRO", "43A400PRO", "55A400PRO", "65A400PRO", "75A400PRO", "85A400PRO", "98A400PRO"] },
-            { category: "Seria C7L / C8L", models: ["55C7L", "65C7L", "75C7L", "85C7L", "98C7L", "55C8L", "65C8L", "75C8L", "85C8L", "98C8L"] },
-            { category: "Seria RM7L / RM9L", models: ["65RM7L", "75RM7L", "85RM7L", "98RM7L", "85RM9L", "98RM9L", "115RM9L"] },
+            { category: "Seria P6L", models: ["55P6L", "65P6L", "75P6L"] },
+            { category: "Seria P7L", models: ["43P7L", "50P7L", "55P7L", "65P7L", "75P7L", "85P7L"] },
+            { category: "Seria P8L", models: ["55P8L", "65P8L", "75P8L", "85P8L", "98P8L"] },
+            { category: "Seria A400", models: ["55A400", "65A400", "75A400", "85A400", "98A400"] },
+            { category: "Seria A400U", models: ["55A400U", "65A400U", "75A400U", "85A400U", "98A400U"] },
+            { category: "Seria A400PRO", models: ["32A400PRO", "43A400PRO", "55A400PRO", "65A400PRO", "75A400PRO", "85A400PRO", "98A400PRO"] },
+            { category: "Seria C7L", models: ["55C7L", "65C7L", "75C7L", "85C7L", "98C7L"] },
+            { category: "Seria C8L", models: ["55C8L", "65C8L", "75C8L", "85C8L", "98C8L"] },
+            { category: "Seria RM7L", models: ["65RM7L", "75RM7L", "85RM7L", "98RM7L"] },
+            { category: "Seria RM9L", models: ["85RM9L", "98RM9L", "115RM9L"] },
             { category: "Seria X11L", models: ["75X11L", "85X11L", "98X11L"] }
         ];
         
@@ -1280,6 +1288,7 @@
         });
     }
 
+    // === CZYSTY ORYGINALNY MECHANIZM PDF ===
     window.downloadPDF = function() {
         window.scrollTo(0,0);
         const element = document.getElementById('view-reports');
@@ -1339,6 +1348,7 @@
         const tbody = document.querySelector('#visit-table tbody');
         tbody.innerHTML = '';
         
+        // Wyświetlanie WSZYSTKICH sklepów z bazy, posortowanych alfabetycznie
         let allStoresSorted = [...stores].sort((a,b) => a.CITY.localeCompare(b.CITY));
         
         allStoresSorted.forEach(s => {
