@@ -8,7 +8,6 @@
     <!-- === KODY PWA === -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#E31837">
-    <!-- Wymuszenie trybu pełnoekranowego dla Androida i iOS -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -37,11 +36,20 @@
         .container { padding: 16px; display: none; }
         .active-view { display: block; }
         
+        /* SCROLLOWANY PASEK PLANU */
+        .calendar-scroll { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 8px; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory;}
+        .calendar-scroll::-webkit-scrollbar { display: none; }
+        .calendar-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .calendar-scroll .date-pill { flex: 0 0 16%; min-width: 55px; scroll-snap-align: center; }
+
+        /* SIATKA MIESIĘCZNA DLA TRASY */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 16px; }
-        .date-pill { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; text-align: center; cursor: pointer; transition: 0.2s; }
+        
+        .date-pill { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; text-align: center; cursor: pointer; transition: 0.2s; user-select: none;}
         .date-pill.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 8px rgba(227,24,55,0.3); }
         .date-day { font-size: 9px; text-transform: uppercase; font-weight: 600; margin-bottom: 2px; opacity: 0.8; }
         .date-num { font-size: 13px; font-weight: 700; }
+        .date-pill-route { padding: 6px 2px; }
 
         .search-container { position: relative; margin-bottom: 20px; }
         .search-input { width: 100%; padding: 16px; border: 2px solid var(--border); border-radius: 12px; box-sizing: border-box; font-size: 14px; font-family: 'Inter'; background: white; transition: 0.2s; }
@@ -144,7 +152,7 @@
 
 <!-- WIDOK 1: Plan -->
 <div class="container active-view" id="view-plan">
-    <div class="calendar-grid" id="calendar-strip-plan"></div>
+    <div class="calendar-scroll" id="calendar-strip-plan"></div>
     
     <div class="search-container">
         <input type="text" id="searchInput" class="search-input" placeholder="Wpisz nazwę sklepu lub opis zadania..." oninput="handleSearch()">
@@ -161,11 +169,17 @@
     </div>
 </div>
 
-<!-- WIDOK 2: Trasa (Zarządzanie Trasą i Historiami) -->
+<!-- WIDOK 2: Trasa (Siata Miesięczna) -->
 <div class="container" id="view-route">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); border: 1px solid var(--border);">
+        <button class="btn btn-outline" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center; font-size:16px;" onclick="changeRouteMonth(-1)">◀</button>
+        <div id="route-month-label" style="font-weight: 700; font-size: 15px; color: var(--primary);"></div>
+        <button class="btn btn-outline" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center; font-size:16px;" onclick="changeRouteMonth(1)">▶</button>
+    </div>
     <div class="calendar-grid" id="calendar-strip-route"></div>
+    
     <div id="route-content">
-        <div style="text-align:center; margin-top: 40px; color: var(--text-muted);">Najpierw ułóż plan w zakładce Plan.</div>
+        <div style="text-align:center; margin-top: 40px; color: var(--text-muted);">Wybierz datę z kalendarza, aby zobaczyć trasę.</div>
     </div>
 </div>
 
@@ -269,6 +283,7 @@
     let stores = [];
     let BASE_LOCATION = { lat: 54.4925, lng: 18.5280, name: "Gdynia (Domyślnie)" };
     
+    let currentRouteDate = new Date(); // Zarządza widokiem kalendarza w zakładce Trasa
     window.tempLat = null;
     window.tempLng = null;
     window.tempBaseName = "";
@@ -474,55 +489,121 @@
 
     let schedules = JSON.parse(localStorage.getItem('tcl_schedules') || '{}');
     let selectedDate = '';
-    let myMap = null;
-    let reportMap = null;
-    let currentRouteDistance = 0;
-    const daysPl = ['Niedz', 'Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob'];
+    const daysPl = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb']; // Krótsze nazwy
 
     function initCalendar() {
         const stripPlan = document.getElementById('calendar-strip-plan');
-        const stripRoute = document.getElementById('calendar-strip-route');
         stripPlan.innerHTML = '';
-        if (stripRoute) stripRoute.innerHTML = '';
         
         let today = new Date();
-        for(let i = 0; i < 35; i++) {
+        
+        // PASEK PLANU: -15 do +35 dni
+        for(let i = -15; i < 35; i++) {
             let d = new Date(today);
             d.setDate(today.getDate() + i);
             const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             const displayDate = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
-            const dayName = daysPl[d.getDay()];
-
-            const pillHtml = `<div class="date-day">${i===0 ? 'Dziś' : dayName}</div><div class="date-num">${displayDate}</div>`;
+            const dayName = i === 0 ? 'Dziś' : daysPl[d.getDay()];
 
             const pillPlan = document.createElement('div');
             pillPlan.className = 'date-pill date-pill-plan';
             pillPlan.id = `pill-plan-${dateStr}`;
-            pillPlan.innerHTML = pillHtml;
+            pillPlan.innerHTML = `<div class="date-day">${dayName}</div><div class="date-num">${displayDate}</div>`;
             pillPlan.onclick = () => selectDate(dateStr);
             stripPlan.appendChild(pillPlan);
-
-            if (stripRoute) {
-                const pillRoute = document.createElement('div');
-                pillRoute.className = 'date-pill date-pill-route';
-                pillRoute.id = `pill-route-${dateStr}`;
-                pillRoute.innerHTML = pillHtml;
-                pillRoute.onclick = () => selectDate(dateStr);
-                stripRoute.appendChild(pillRoute);
-            }
         }
+
+        renderRouteCalendar();
+
         const firstDateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-        selectDate(firstDateStr);
+        setTimeout(() => selectDate(firstDateStr), 50);
+    }
+
+    window.changeRouteMonth = function(offset) {
+        currentRouteDate.setMonth(currentRouteDate.getMonth() + offset);
+        renderRouteCalendar();
+    }
+
+    function renderRouteCalendar() {
+        const stripRoute = document.getElementById('calendar-strip-route');
+        if (!stripRoute) return;
+        stripRoute.innerHTML = '';
+
+        const y = currentRouteDate.getFullYear();
+        const m = currentRouteDate.getMonth();
+
+        const monthNames = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"];
+        document.getElementById('route-month-label').innerText = `${monthNames[m]} ${y}`;
+
+        const shortDays = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
+        shortDays.forEach(d => {
+            const header = document.createElement('div');
+            header.style = "text-align:center; font-size:10px; color:var(--text-muted); font-weight:bold;";
+            header.innerText = d;
+            stripRoute.appendChild(header);
+        });
+
+        let firstDay = new Date(y, m, 1).getDay();
+        let emptyDays = firstDay === 0 ? 6 : firstDay - 1;
+
+        for(let i=0; i<emptyDays; i++) {
+            const empty = document.createElement('div');
+            stripRoute.appendChild(empty);
+        }
+
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        let historyLog = JSON.parse(localStorage.getItem('tcl_history_log') || '{}');
+
+        for(let i = 1; i <= daysInMonth; i++) {
+            let d = new Date(y, m, i);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            const displayDate = `${String(d.getDate())}`;
+
+            let isFinalized = !!historyLog[dateStr];
+            let hasPlan = !!(schedules[dateStr] && schedules[dateStr].length > 0);
+
+            let indicator = '';
+            if (isFinalized) indicator = '<div style="width:6px; height:6px; background:var(--success); border-radius:50%; margin:4px auto 0;"></div>';
+            else if (hasPlan) indicator = '<div style="width:6px; height:6px; background:var(--primary); border-radius:50%; margin:4px auto 0;"></div>';
+            else indicator = '<div style="width:6px; height:6px; margin:4px auto 0;"></div>'; 
+
+            const pillRoute = document.createElement('div');
+            pillRoute.className = 'date-pill date-pill-route';
+            pillRoute.id = `pill-route-${dateStr}`;
+            pillRoute.innerHTML = `<div class="date-num" style="font-size: 14px; margin-top:2px;">${displayDate}</div>${indicator}`;
+            
+            if (dateStr === selectedDate) {
+                pillRoute.classList.add('active');
+            }
+
+            pillRoute.onclick = () => selectDate(dateStr);
+            stripRoute.appendChild(pillRoute);
+        }
     }
 
     function selectDate(dateStr) {
         selectedDate = dateStr;
+        
+        let parts = dateStr.split('-');
+        let sY = parseInt(parts[0]);
+        let sM = parseInt(parts[1]) - 1;
+        if (currentRouteDate.getFullYear() !== sY || currentRouteDate.getMonth() !== sM) {
+            currentRouteDate = new Date(sY, sM, 1);
+            renderRouteCalendar(); 
+        }
+
         document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
         
         const pillPlan = document.getElementById(`pill-plan-${dateStr}`);
         const pillRoute = document.getElementById(`pill-route-${dateStr}`);
-        if(pillPlan) pillPlan.classList.add('active');
-        if(pillRoute) pillRoute.classList.add('active');
+        
+        if(pillPlan) {
+            pillPlan.classList.add('active');
+            pillPlan.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+        if(pillRoute) {
+            pillRoute.classList.add('active');
+        }
         
         if(document.getElementById('currentDateTitle')) document.getElementById('currentDateTitle').innerText = dateStr;
         
@@ -642,6 +723,7 @@
         localStorage.setItem('tcl_schedules', JSON.stringify(schedules));
         renderDayPlan();
         generateRoute(false);
+        renderRouteCalendar();
     }
 
     function renderDayPlan() {
@@ -757,7 +839,6 @@
                 currentRouteDistance += getDistanceSafe(bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
             }
 
-            // ODWRÓCENIE TRASY - ZACZYNAMY OD NAJDALSZEGO PUNKTU
             if (bestRoute.length > 1) {
                 let distFirst = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[0].__LATITUDE, bestRoute[0].__LONGITUDE);
                 let distLast = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE);
@@ -910,6 +991,7 @@
         }
         
         showToast("Zapisano pomyślnie. Zaktualizowano raport.");
+        renderRouteCalendar();
         selectDate(selectedDate); 
         setTimeout(() => { switchTab('view-reports', document.querySelectorAll('.nav-item')[6]); }, 1000);
     }
@@ -1001,7 +1083,11 @@
         localStorage.setItem('tcl_routes_' + ym, JSON.stringify(monthlyRoutes));
 
         showToast("Odblokowano dzień. Zaktualizowano raport.");
-        selectDate(dateStr); 
+        renderRouteCalendar();
+        
+        if (dateStr === selectedDate) {
+            selectDate(selectedDate); 
+        }
     }
 
     function initLineupSelect() {
