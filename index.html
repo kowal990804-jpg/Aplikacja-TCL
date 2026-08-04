@@ -37,20 +37,11 @@
         .container { padding: 16px; display: none; }
         .active-view { display: block; }
         
-        /* SCROLLOWANY PASEK PLANU */
-        .calendar-scroll { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 8px; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory;}
-        .calendar-scroll::-webkit-scrollbar { display: none; }
-        .calendar-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-        .calendar-scroll .date-pill { flex: 0 0 16%; min-width: 55px; scroll-snap-align: center; }
-
-        /* SIATKA MIESIĘCZNA DLA TRASY */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 16px; }
-        
-        .date-pill { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; text-align: center; cursor: pointer; transition: 0.2s; user-select: none;}
+        .date-pill { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; text-align: center; cursor: pointer; transition: 0.2s; }
         .date-pill.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 8px rgba(227,24,55,0.3); }
         .date-day { font-size: 9px; text-transform: uppercase; font-weight: 600; margin-bottom: 2px; opacity: 0.8; }
         .date-num { font-size: 13px; font-weight: 700; }
-        .date-pill-route { padding: 6px 2px; }
 
         .search-container { position: relative; margin-bottom: 20px; }
         .search-input { width: 100%; padding: 16px; border: 2px solid var(--border); border-radius: 12px; box-sizing: border-box; font-size: 14px; font-family: 'Inter'; background: white; transition: 0.2s; }
@@ -80,9 +71,8 @@
         .tv-chip.active-displayed { background: var(--success); border-color: var(--success); color: white; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3); }
         .tv-chip.active-missing { background: var(--primary); border-color: var(--primary); color: white; box-shadow: 0 2px 6px rgba(227, 24, 55, 0.3); }
 
-        /* Wymiary map bez zbędnego z-indexu, który mógłby je zasłaniać */
-        #map-container { height: calc(100vh - 160px); width: 100%; border-radius: 12px; border: 2px solid var(--border); }
-        #report-map-container { height: 250px; width: 100%; border-radius: 12px; margin-top: 16px; margin-bottom: 24px; border: 2px solid var(--border); }
+        #map-container { height: calc(100vh - 160px); width: 100%; border-radius: 12px; z-index: 1; border: 2px solid var(--card-bg); }
+        #report-map-container { height: 250px; width: 100%; border-radius: 12px; margin-top: 16px; margin-bottom: 24px; border: 2px solid var(--border); z-index: 1; }
         
         .fab-container { position: fixed; bottom: 80px; left: 0; width: 100%; padding: 0 16px; box-sizing: border-box; z-index: 90; }
         
@@ -117,7 +107,7 @@
 </head>
 <body>
 
-<!-- WIDOK ŁADOWANIA / LOGOWANIA -->
+<!-- WIDOK ŁADOWANIA / LOGOWANIA (Zawsze widoczny na start) -->
 <div id="login-screen" style="display: flex;">
     <div class="login-card">
         <h2 style="margin-top:0; margin-bottom: 8px; color: var(--primary);">Asystent Trasy</h2>
@@ -154,7 +144,7 @@
 
 <!-- WIDOK 1: Plan -->
 <div class="container active-view" id="view-plan">
-    <div class="calendar-scroll" id="calendar-strip-plan"></div>
+    <div class="calendar-grid" id="calendar-strip-plan"></div>
     
     <div class="search-container">
         <input type="text" id="searchInput" class="search-input" placeholder="Wpisz nazwę sklepu lub opis zadania..." oninput="handleSearch()">
@@ -171,17 +161,11 @@
     </div>
 </div>
 
-<!-- WIDOK 2: Trasa (Siatka Miesięczna) -->
+<!-- WIDOK 2: Trasa (Zarządzanie Trasą i Historiami) -->
 <div class="container" id="view-route">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); border: 1px solid var(--border);">
-        <button class="btn btn-outline" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center; font-size:16px;" onclick="changeRouteMonth(-1)">◀</button>
-        <div id="route-month-label" style="font-weight: 700; font-size: 15px; color: var(--primary);"></div>
-        <button class="btn btn-outline" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center; font-size:16px;" onclick="changeRouteMonth(1)">▶</button>
-    </div>
     <div class="calendar-grid" id="calendar-strip-route"></div>
-    
     <div id="route-content">
-        <div style="text-align:center; margin-top: 40px; color: var(--text-muted);">Wybierz datę z kalendarza, aby zobaczyć trasę.</div>
+        <div style="text-align:center; margin-top: 40px; color: var(--text-muted);">Najpierw ułóż plan w zakładce Plan.</div>
     </div>
 </div>
 
@@ -261,6 +245,10 @@
         <thead><tr><th>Sklep / Miasto</th><th>Kat.</th><th>Daty wizyt</th></tr></thead>
         <tbody></tbody>
     </table>
+    
+    <div class="no-print" id="pdf-buttons-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+        <button class="btn btn-blue" onclick="downloadPDF()">📄 Pobierz raport jako PDF</button>
+    </div>
 </div>
 
 <!-- Nawigacja Dolna (7 Elementów) -->
@@ -281,13 +269,12 @@
     let stores = [];
     let BASE_LOCATION = { lat: 54.4925, lng: 18.5280, name: "Gdynia (Domyślnie)" };
     
-    let currentRouteDate = new Date(); 
     window.tempLat = null;
     window.tempLng = null;
     window.tempBaseName = "";
 
     window.onload = function() {
-        checkLogin(); 
+        showUploadForm(); 
         
         if (!localStorage.getItem('tcl_demo_history_loaded')) {
             localStorage.setItem('tcl_demo_history_loaded', 'true');
@@ -305,35 +292,7 @@
         setTimeout(() => { toast.style.opacity = '0'; }, 3000);
     }
 
-    function checkLogin() {
-        const savedStores = localStorage.getItem('tcl_my_stores');
-        const savedUser = localStorage.getItem('tcl_current_user');
-        const savedBase = localStorage.getItem('tcl_base_location');
-        
-        if (savedStores && savedUser && JSON.parse(savedStores).length > 0) {
-            stores = JSON.parse(savedStores);
-            if(savedBase) BASE_LOCATION = JSON.parse(savedBase);
-            
-            document.getElementById('current-user-name').innerText = savedUser;
-            document.getElementById('current-user-stores-count').innerText = stores.length;
-            document.getElementById('headerTitle').innerText = "Witaj, " + savedUser.split(' ')[0] + "!";
-            
-            document.getElementById('login-existing').style.display = 'block';
-            document.getElementById('login-new').style.display = 'none';
-            document.getElementById('login-screen').style.display = 'flex';
-        } else {
-            showUploadForm();
-        }
-    }
-
     function showUploadForm() {
-        localStorage.removeItem('tcl_my_stores');
-        localStorage.removeItem('tcl_current_user');
-        localStorage.removeItem('tcl_base_location');
-        stores = [];
-        
-        document.getElementById('login-existing').style.display = 'none';
-        document.getElementById('login-new').style.display = 'block';
         document.getElementById('login-screen').style.display = 'flex';
         
         let select = document.getElementById('merchandiser-select');
@@ -341,18 +300,36 @@
         DB.m.forEach(m => {
             select.innerHTML += `<option value="${m}">${m}</option>`;
         });
-        
-        document.getElementById('base-address').value = '';
-        document.getElementById('geo-result').innerText = "Opcjonalne, ale zalecane. Kliknij 📍 aby użyć GPS.";
-        document.getElementById('geo-result').style.color = "var(--text-muted)";
-        window.tempLat = null;
-        window.tempLng = null;
-        window.tempBaseName = "";
+
+        const savedUser = localStorage.getItem('tcl_current_user');
+        if(savedUser) {
+            select.value = savedUser;
+        }
+
+        const savedBase = JSON.parse(localStorage.getItem('tcl_base_location'));
+        if (savedBase && savedBase.name !== "Polska") {
+            document.getElementById('base-address').value = savedBase.name;
+            window.tempLat = savedBase.lat;
+            window.tempLng = savedBase.lng;
+            window.tempBaseName = savedBase.name;
+            document.getElementById('geo-result').innerText = `✅ Pamiętam bazę: ${window.tempBaseName}`;
+            document.getElementById('geo-result').style.color = "var(--success)";
+        } else {
+            document.getElementById('base-address').value = '';
+            document.getElementById('geo-result').innerText = "Opcjonalne, ale zalecane. Kliknij 📍 aby użyć GPS.";
+            document.getElementById('geo-result').style.color = "var(--text-muted)";
+            window.tempLat = null;
+            window.tempLng = null;
+            window.tempBaseName = "";
+        }
     }
 
     function logout() {
         if(confirm("Czy na pewno chcesz się wylogować i zmienić profil?")) {
-            showUploadForm();
+            localStorage.removeItem('tcl_my_stores');
+            localStorage.removeItem('tcl_current_user');
+            localStorage.removeItem('tcl_base_location');
+            location.reload();
         }
     }
 
@@ -497,120 +474,55 @@
 
     let schedules = JSON.parse(localStorage.getItem('tcl_schedules') || '{}');
     let selectedDate = '';
-    const daysPl = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb']; 
+    let myMap = null;
+    let reportMap = null;
+    let currentRouteDistance = 0;
+    const daysPl = ['Niedz', 'Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob'];
 
     function initCalendar() {
         const stripPlan = document.getElementById('calendar-strip-plan');
+        const stripRoute = document.getElementById('calendar-strip-route');
         stripPlan.innerHTML = '';
+        if (stripRoute) stripRoute.innerHTML = '';
         
         let today = new Date();
-        
-        for(let i = -15; i < 35; i++) {
+        for(let i = 0; i < 35; i++) {
             let d = new Date(today);
             d.setDate(today.getDate() + i);
             const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             const displayDate = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
-            const dayName = i === 0 ? 'Dziś' : daysPl[d.getDay()];
+            const dayName = daysPl[d.getDay()];
+
+            const pillHtml = `<div class="date-day">${i===0 ? 'Dziś' : dayName}</div><div class="date-num">${displayDate}</div>`;
 
             const pillPlan = document.createElement('div');
             pillPlan.className = 'date-pill date-pill-plan';
             pillPlan.id = `pill-plan-${dateStr}`;
-            pillPlan.innerHTML = `<div class="date-day">${dayName}</div><div class="date-num">${displayDate}</div>`;
+            pillPlan.innerHTML = pillHtml;
             pillPlan.onclick = () => selectDate(dateStr);
             stripPlan.appendChild(pillPlan);
-        }
 
-        renderRouteCalendar();
-
-        const firstDateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-        setTimeout(() => selectDate(firstDateStr), 50);
-    }
-
-    window.changeRouteMonth = function(offset) {
-        currentRouteDate.setMonth(currentRouteDate.getMonth() + offset);
-        renderRouteCalendar();
-    }
-
-    function renderRouteCalendar() {
-        const stripRoute = document.getElementById('calendar-strip-route');
-        if (!stripRoute) return;
-        stripRoute.innerHTML = '';
-
-        const y = currentRouteDate.getFullYear();
-        const m = currentRouteDate.getMonth();
-
-        const monthNames = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"];
-        document.getElementById('route-month-label').innerText = `${monthNames[m]} ${y}`;
-
-        const shortDays = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
-        shortDays.forEach(d => {
-            const header = document.createElement('div');
-            header.style = "text-align:center; font-size:10px; color:var(--text-muted); font-weight:bold;";
-            header.innerText = d;
-            stripRoute.appendChild(header);
-        });
-
-        let firstDay = new Date(y, m, 1).getDay();
-        let emptyDays = firstDay === 0 ? 6 : firstDay - 1;
-
-        for(let i=0; i<emptyDays; i++) {
-            const empty = document.createElement('div');
-            stripRoute.appendChild(empty);
-        }
-
-        const daysInMonth = new Date(y, m + 1, 0).getDate();
-        let historyLog = JSON.parse(localStorage.getItem('tcl_history_log') || '{}');
-
-        for(let i = 1; i <= daysInMonth; i++) {
-            let d = new Date(y, m, i);
-            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            const displayDate = `${String(d.getDate())}`;
-
-            let isFinalized = !!historyLog[dateStr];
-            let hasPlan = !!(schedules[dateStr] && schedules[dateStr].length > 0);
-
-            let indicator = '';
-            if (isFinalized) indicator = '<div style="width:6px; height:6px; background:var(--success); border-radius:50%; margin:4px auto 0;"></div>';
-            else if (hasPlan) indicator = '<div style="width:6px; height:6px; background:var(--primary); border-radius:50%; margin:4px auto 0;"></div>';
-            else indicator = '<div style="width:6px; height:6px; margin:4px auto 0;"></div>'; 
-
-            const pillRoute = document.createElement('div');
-            pillRoute.className = 'date-pill date-pill-route';
-            pillRoute.id = `pill-route-${dateStr}`;
-            pillRoute.innerHTML = `<div class="date-num" style="font-size: 14px; margin-top:2px;">${displayDate}</div>${indicator}`;
-            
-            if (dateStr === selectedDate) {
-                pillRoute.classList.add('active');
+            if (stripRoute) {
+                const pillRoute = document.createElement('div');
+                pillRoute.className = 'date-pill date-pill-route';
+                pillRoute.id = `pill-route-${dateStr}`;
+                pillRoute.innerHTML = pillHtml;
+                pillRoute.onclick = () => selectDate(dateStr);
+                stripRoute.appendChild(pillRoute);
             }
-
-            pillRoute.onclick = () => selectDate(dateStr);
-            stripRoute.appendChild(pillRoute);
         }
+        const firstDateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        selectDate(firstDateStr);
     }
 
     function selectDate(dateStr) {
         selectedDate = dateStr;
-        
-        let parts = dateStr.split('-');
-        let sY = parseInt(parts[0]);
-        let sM = parseInt(parts[1]) - 1;
-        if (currentRouteDate.getFullYear() !== sY || currentRouteDate.getMonth() !== sM) {
-            currentRouteDate = new Date(sY, sM, 1);
-            renderRouteCalendar(); 
-        }
-
         document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
         
         const pillPlan = document.getElementById(`pill-plan-${dateStr}`);
         const pillRoute = document.getElementById(`pill-route-${dateStr}`);
-        
-        if(pillPlan) {
-            pillPlan.classList.add('active');
-            pillPlan.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        }
-        if(pillRoute) {
-            pillRoute.classList.add('active');
-        }
+        if(pillPlan) pillPlan.classList.add('active');
+        if(pillRoute) pillRoute.classList.add('active');
         
         if(document.getElementById('currentDateTitle')) document.getElementById('currentDateTitle').innerText = dateStr;
         
@@ -730,7 +642,6 @@
         localStorage.setItem('tcl_schedules', JSON.stringify(schedules));
         renderDayPlan();
         generateRoute(false);
-        renderRouteCalendar();
     }
 
     function renderDayPlan() {
@@ -846,6 +757,7 @@
                 currentRouteDistance += getDistanceSafe(bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
             }
 
+            // ODWRÓCENIE TRASY - ZACZYNAMY OD NAJDALSZEGO PUNKTU
             if (bestRoute.length > 1) {
                 let distFirst = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[0].__LATITUDE, bestRoute[0].__LONGITUDE);
                 let distLast = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE);
@@ -892,7 +804,7 @@
         if (bestRoute.length > 0) {
             html += `
             <div style="margin-bottom: 24px; display:flex; flex-direction:column; gap:8px;">
-                <button onclick="window.location.href='${fullMapsUrl}'" class="btn btn-blue" style="padding: 14px; font-size: 15px;">🗺️ Otwórz całą trasę w Google Maps</button>
+                <a href="${fullMapsUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-blue" style="text-decoration: none; display: block; text-align: center; box-sizing: border-box; padding: 14px; font-size: 15px;">🗺️ Otwórz całą trasę w Google Maps</a>
                 <div style="text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 2px;">Trasa od najdalszego punktu w kierunku domu.</div>
             </div>`;
         }
@@ -906,11 +818,10 @@
             
             let mapLink = '';
             if (store.__LATITUDE) {
-                // POWRÓT DO SPRAWDZONEGO geo:0,0?q=
-                let geoLink = `geo:0,0?q=${store.__LATITUDE},${store.__LONGITUDE}(${encodeURIComponent(store["Store Chain"] + ' ' + store.CITY)})`;
+                let singleMapUrl = `https://www.google.com/maps/dir/?api=1&destination=${store.__LATITUDE},${store.__LONGITUDE}`;
                 mapLink = `
                 <div style="margin-top:8px;">
-                    <button onclick="window.location.href='${geoLink}'" class="btn" style="width:100%; background:#f8fafc; color:#1e293b; border:2px solid #cbd5e1; padding:10px; border-radius:8px; font-weight:600; font-size:13px;">📍 Uruchom Nawigację (do tego punktu)</button>
+                    <a href="${singleMapUrl}" target="_blank" rel="noopener noreferrer" class="btn" style="text-decoration:none; display:block; text-align:center; background:#f8fafc; color:#1e293b; border:2px solid #cbd5e1; padding:10px; border-radius:8px; font-weight:600; font-size:13px;">📍 Uruchom Nawigację (do tego punktu)</a>
                 </div>`;
             }
             
@@ -999,7 +910,6 @@
         }
         
         showToast("Zapisano pomyślnie. Zaktualizowano raport.");
-        renderRouteCalendar();
         selectDate(selectedDate); 
         setTimeout(() => { switchTab('view-reports', document.querySelectorAll('.nav-item')[6]); }, 1000);
     }
@@ -1021,6 +931,34 @@
         clearTimeout(deleteDayTimeout);
         
         let historyLog = JSON.parse(localStorage.getItem('tcl_history_log') || '{}');
+        const items = historyLog[dateStr];
+        if(!items) return; 
+        
+        const storeItems = items.filter(i => i.type === 'store').map(i => stores.find(s => s.STORE_NAME === i.id)).filter(s => s);
+        if(storeItems.length > 0) {
+            let currentRouteDistance = 0;
+            let bestRoute = storeItems;
+            if (storeItems.length <= 6) {
+                const permutations = getPermutations(storeItems);
+                currentRouteDistance = Infinity;
+                permutations.forEach(route => {
+                    let dist = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, route[0].__LATITUDE, route[0].__LONGITUDE);
+                    for(let i=0; i<route.length-1; i++) dist += getDistanceSafe(route[i].__LATITUDE, route[i].__LONGITUDE, route[i+1].__LATITUDE, route[i+1].__LONGITUDE);
+                    dist += getDistanceSafe(route[route.length-1].__LATITUDE, route[route.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
+                    if (dist < currentRouteDistance) { currentRouteDistance = dist; bestRoute = route; }
+                });
+            } else {
+                currentRouteDistance = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[0].__LATITUDE, bestRoute[0].__LONGITUDE);
+                for(let i=0; i<bestRoute.length-1; i++) currentRouteDistance += getDistanceSafe(bestRoute[i].__LATITUDE, bestRoute[i].__LONGITUDE, bestRoute[i+1].__LATITUDE, bestRoute[i+1].__LONGITUDE);
+                currentRouteDistance += getDistanceSafe(bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
+            }
+            let roadDistance = currentRouteDistance * 1.2;
+            let currentTotalKm = parseFloat(localStorage.getItem('tcl_total_km')) || 0;
+            currentTotalKm -= roadDistance;
+            if(currentTotalKm < 0) currentTotalKm = 0;
+            localStorage.setItem('tcl_total_km', currentTotalKm.toFixed(1));
+        }
+
         delete historyLog[dateStr];
         localStorage.setItem('tcl_history_log', JSON.stringify(historyLog));
 
@@ -1063,11 +1001,7 @@
         localStorage.setItem('tcl_routes_' + ym, JSON.stringify(monthlyRoutes));
 
         showToast("Odblokowano dzień. Zaktualizowano raport.");
-        renderRouteCalendar();
-        
-        if (dateStr === selectedDate) {
-            selectDate(selectedDate); 
-        }
+        selectDate(dateStr); 
     }
 
     function initLineupSelect() {
@@ -1100,6 +1034,7 @@
 
         let html = '';
         
+        // ZAAKTUALIZOWANE KATEGORIE TV (ROZBITE GRUPY)
         const tvCategories = [
             { category: "Seria S5L", models: ["32S5L", "40S5L", "43S5L", "50S5L"] },
             { category: "Seria P6L", models: ["55P6L", "65P6L", "75P6L"] },
@@ -1300,24 +1235,20 @@
     }
 
     function initMap() {
-        if(!myMap) { 
-            myMap = L.map('map-container').setView([BASE_LOCATION.lat || 52.0, BASE_LOCATION.lng || 19.0], 8);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(myMap);
-            
-            if(BASE_LOCATION.lat && BASE_LOCATION.lng) {
-                L.circleMarker([BASE_LOCATION.lat, BASE_LOCATION.lng], { color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 1, radius: 8 }).addTo(myMap).bindPopup(`<b>Baza</b><br>${BASE_LOCATION.name}`);
-            }
-            
-            stores.forEach(s => {
-                if(s.__LATITUDE && s.__LONGITUDE) {
-                    let c = s["Store classification"] === 'S' ? '#ef4444' : (s["Store classification"] === 'A' ? '#f59e0b' : '#10b981');
-                    L.circleMarker([s.__LATITUDE, s.__LONGITUDE], { color: c, fillColor: c, fillOpacity: 0.8, radius: 6 }).addTo(myMap).bindPopup(`<b>${s["Store Chain"]}</b><br>${s.CITY}, ${s.street || ''}`);
-                }
-            });
+        if(myMap) { myMap.invalidateSize(); return; }
+        myMap = L.map('map-container').setView([BASE_LOCATION.lat || 52.0, BASE_LOCATION.lng || 19.0], 8);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(myMap);
+        
+        if(BASE_LOCATION.lat && BASE_LOCATION.lng) {
+            L.circleMarker([BASE_LOCATION.lat, BASE_LOCATION.lng], { color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 1, radius: 8 }).addTo(myMap).bindPopup(`<b>Baza</b><br>${BASE_LOCATION.name}`);
         }
         
-        // Wymuszone odświeżenie rozmiaru mapy po pokazaniu kontenera!
-        setTimeout(() => { if(myMap) myMap.invalidateSize(); }, 300);
+        stores.forEach(s => {
+            if(s.__LATITUDE && s.__LONGITUDE) {
+                let c = s["Store classification"] === 'S' ? '#ef4444' : (s["Store classification"] === 'A' ? '#f59e0b' : '#10b981');
+                L.circleMarker([s.__LATITUDE, s.__LONGITUDE], { color: c, fillColor: c, fillOpacity: 0.8, radius: 6 }).addTo(myMap).bindPopup(`<b>${s["Store Chain"]}</b><br>${s.CITY}, ${s.street || ''}`);
+            }
+        });
     }
 
     window.initReportMap = function(selectedMonth) {
@@ -1330,9 +1261,7 @@
         } else {
             if(window.reportPolylines) window.reportPolylines.forEach(p => reportMap.removeLayer(p));
         }
-        
-        // Wymuszone odświeżenie rozmiaru mapy
-        setTimeout(() => { if(reportMap) reportMap.invalidateSize(); }, 300);
+        reportMap.invalidateSize();
         
         let monthlyRoutes = JSON.parse(localStorage.getItem('tcl_routes_' + selectedMonth) || '[]');
         
@@ -1342,6 +1271,31 @@
             window.reportPolylines.push(pl);
         });
     }
+
+    // === CZYSTY ORYGINALNY MECHANIZM PDF ===
+    window.downloadPDF = function() {
+        window.scrollTo(0,0);
+        const element = document.getElementById('view-reports');
+        const buttonsContainer = document.getElementById('pdf-buttons-container');
+        buttonsContainer.style.display = 'none';
+        if(window.showToast) showToast("Trwa generowanie PDF... ⏳");
+
+        const userName = (localStorage.getItem('tcl_current_user') || 'TCL').replace(/\s+/g, '_');
+        const selectedMonth = document.getElementById('report-month').value || 'Raport';
+
+        const opt = {
+            margin:       [10, 10, 10, 10], 
+            filename:     `Raport_Wizyt_${selectedMonth}_${userName}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, scrollY: 0, windowHeight: element.scrollHeight + 50 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['css', 'legacy'] } 
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => { 
+            buttonsContainer.style.display = 'flex'; 
+        });
+    };
 
     window.loadReports = function() {
         const selectedMonth = document.getElementById('report-month').value;
@@ -1361,6 +1315,7 @@
                 dist += getDistanceSafe(items[items.length-1].__LATITUDE, items[items.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
                 monthKm += dist * 1.2;
                 
+                // FORMATOWANIE DATY NA DD.MM.YYYY
                 let fullDate = d.split('-').reverse().join('.');
                 
                 items.forEach(store => {
@@ -1377,6 +1332,7 @@
         const tbody = document.querySelector('#visit-table tbody');
         tbody.innerHTML = '';
         
+        // Wyświetlanie WSZYSTKICH sklepów z bazy, posortowanych alfabetycznie
         let allStoresSorted = [...stores].sort((a,b) => a.CITY.localeCompare(b.CITY));
         
         allStoresSorted.forEach(s => {
@@ -1390,7 +1346,7 @@
             </tr>`;
         });
         
-        setTimeout(() => initReportMap(selectedMonth), 50);
+        setTimeout(() => initReportMap(selectedMonth), 150);
     }
 
     function switchTab(viewId, el) {
@@ -1402,7 +1358,7 @@
         if(viewId === 'view-reports') loadReports();
         if(viewId === 'view-overdue') loadOverdue();
         if(viewId === 'view-budget') loadBudget();
-        if(viewId === 'view-map') setTimeout(initMap, 50); 
+        if(viewId === 'view-map') setTimeout(initMap, 150);
         window.scrollTo(0,0);
     }
 </script>
