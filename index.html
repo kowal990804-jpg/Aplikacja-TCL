@@ -17,6 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         :root { --primary: #E31837; --primary-light: #fbe8eb; --bg: #f4f6f8; --card-bg: #ffffff; --text-main: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --success: #10b981; }
@@ -79,8 +80,9 @@
         .tv-chip.active-displayed { background: var(--success); border-color: var(--success); color: white; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3); }
         .tv-chip.active-missing { background: var(--primary); border-color: var(--primary); color: white; box-shadow: 0 2px 6px rgba(227, 24, 55, 0.3); }
 
-        #map-container { height: calc(100vh - 160px); width: 100%; border-radius: 12px; z-index: 1; border: 2px solid var(--card-bg); }
-        #report-map-container { height: 250px; width: 100%; border-radius: 12px; margin-top: 16px; margin-bottom: 24px; border: 2px solid var(--border); z-index: 1; }
+        /* Wymiary map bez zbędnego z-indexu, który mógłby je zasłaniać */
+        #map-container { height: calc(100vh - 160px); width: 100%; border-radius: 12px; border: 2px solid var(--border); }
+        #report-map-container { height: 250px; width: 100%; border-radius: 12px; margin-top: 16px; margin-bottom: 24px; border: 2px solid var(--border); }
         
         .fab-container { position: fixed; bottom: 80px; left: 0; width: 100%; padding: 0 16px; box-sizing: border-box; z-index: 90; }
         
@@ -116,20 +118,10 @@
 <body>
 
 <!-- WIDOK ŁADOWANIA / LOGOWANIA -->
-<div id="login-screen" style="display: none;">
+<div id="login-screen" style="display: flex;">
     <div class="login-card">
         <h2 style="margin-top:0; margin-bottom: 8px; color: var(--primary);">Asystent Trasy</h2>
         
-        <div id="login-existing" style="display:none; margin-bottom: 10px; margin-top: 20px;">
-            <p style="font-size: 14px; margin-bottom: 5px;">Zalogowano jako:</p>
-            <p style="font-size: 18px; font-weight: bold; color: var(--primary); margin: 0 0 10px 0;" id="current-user-name"></p>
-            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Masz przypisanych <b id="current-user-stores-count"></b> sklepów.</p>
-            <button class="btn btn-success" onclick="continueToApp()">✅ Przejdź do aplikacji</button>
-            <div style="margin-top: 20px;">
-                <button class="btn btn-outline" style="padding: 12px; font-size: 13px;" onclick="showUploadForm()">Zmień konto / profil</button>
-            </div>
-        </div>
-
         <div id="login-new">
             <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">Wybierz swój profil z listy, aby pobrać bazę sklepów.</p>
             
@@ -179,7 +171,7 @@
     </div>
 </div>
 
-<!-- WIDOK 2: Trasa (Siata Miesięczna) -->
+<!-- WIDOK 2: Trasa (Siatka Miesięczna) -->
 <div class="container" id="view-route">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); border: 1px solid var(--border);">
         <button class="btn btn-outline" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center; font-size:16px;" onclick="changeRouteMonth(-1)">◀</button>
@@ -914,7 +906,8 @@
             
             let mapLink = '';
             if (store.__LATITUDE) {
-                let geoLink = `geo:${store.__LATITUDE},${store.__LONGITUDE}?q=${store.__LATITUDE},${store.__LONGITUDE}(${encodeURIComponent(store["Store Chain"] + ' ' + store.CITY)})`;
+                // POWRÓT DO SPRAWDZONEGO geo:0,0?q=
+                let geoLink = `geo:0,0?q=${store.__LATITUDE},${store.__LONGITUDE}(${encodeURIComponent(store["Store Chain"] + ' ' + store.CITY)})`;
                 mapLink = `
                 <div style="margin-top:8px;">
                     <button onclick="window.location.href='${geoLink}'" class="btn" style="width:100%; background:#f8fafc; color:#1e293b; border:2px solid #cbd5e1; padding:10px; border-radius:8px; font-weight:600; font-size:13px;">📍 Uruchom Nawigację (do tego punktu)</button>
@@ -1028,34 +1021,6 @@
         clearTimeout(deleteDayTimeout);
         
         let historyLog = JSON.parse(localStorage.getItem('tcl_history_log') || '{}');
-        const items = historyLog[dateStr];
-        if(!items) return; 
-        
-        const storeItems = items.filter(i => i.type === 'store').map(i => stores.find(s => s.STORE_NAME === i.id)).filter(s => s);
-        if(storeItems.length > 0) {
-            let currentRouteDistance = 0;
-            let bestRoute = storeItems;
-            if (storeItems.length <= 6) {
-                const permutations = getPermutations(storeItems);
-                currentRouteDistance = Infinity;
-                permutations.forEach(route => {
-                    let dist = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, route[0].__LATITUDE, route[0].__LONGITUDE);
-                    for(let i=0; i<route.length-1; i++) dist += getDistanceSafe(route[i].__LATITUDE, route[i].__LONGITUDE, route[i+1].__LATITUDE, route[i+1].__LONGITUDE);
-                    dist += getDistanceSafe(route[route.length-1].__LATITUDE, route[route.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
-                    if (dist < currentRouteDistance) { currentRouteDistance = dist; bestRoute = route; }
-                });
-            } else {
-                currentRouteDistance = getDistanceSafe(BASE_LOCATION.lat, BASE_LOCATION.lng, bestRoute[0].__LATITUDE, bestRoute[0].__LONGITUDE);
-                for(let i=0; i<bestRoute.length-1; i++) currentRouteDistance += getDistanceSafe(bestRoute[i].__LATITUDE, bestRoute[i].__LONGITUDE, bestRoute[i+1].__LATITUDE, bestRoute[i+1].__LONGITUDE);
-                currentRouteDistance += getDistanceSafe(bestRoute[bestRoute.length-1].__LATITUDE, bestRoute[bestRoute.length-1].__LONGITUDE, BASE_LOCATION.lat, BASE_LOCATION.lng);
-            }
-            let roadDistance = currentRouteDistance * 1.2;
-            let currentTotalKm = parseFloat(localStorage.getItem('tcl_total_km')) || 0;
-            currentTotalKm -= roadDistance;
-            if(currentTotalKm < 0) currentTotalKm = 0;
-            localStorage.setItem('tcl_total_km', currentTotalKm.toFixed(1));
-        }
-
         delete historyLog[dateStr];
         localStorage.setItem('tcl_history_log', JSON.stringify(historyLog));
 
@@ -1335,20 +1300,24 @@
     }
 
     function initMap() {
-        if(myMap) { myMap.invalidateSize(); return; }
-        myMap = L.map('map-container').setView([BASE_LOCATION.lat || 52.0, BASE_LOCATION.lng || 19.0], 8);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(myMap);
-        
-        if(BASE_LOCATION.lat && BASE_LOCATION.lng) {
-            L.circleMarker([BASE_LOCATION.lat, BASE_LOCATION.lng], { color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 1, radius: 8 }).addTo(myMap).bindPopup(`<b>Baza</b><br>${BASE_LOCATION.name}`);
+        if(!myMap) { 
+            myMap = L.map('map-container').setView([BASE_LOCATION.lat || 52.0, BASE_LOCATION.lng || 19.0], 8);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(myMap);
+            
+            if(BASE_LOCATION.lat && BASE_LOCATION.lng) {
+                L.circleMarker([BASE_LOCATION.lat, BASE_LOCATION.lng], { color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 1, radius: 8 }).addTo(myMap).bindPopup(`<b>Baza</b><br>${BASE_LOCATION.name}`);
+            }
+            
+            stores.forEach(s => {
+                if(s.__LATITUDE && s.__LONGITUDE) {
+                    let c = s["Store classification"] === 'S' ? '#ef4444' : (s["Store classification"] === 'A' ? '#f59e0b' : '#10b981');
+                    L.circleMarker([s.__LATITUDE, s.__LONGITUDE], { color: c, fillColor: c, fillOpacity: 0.8, radius: 6 }).addTo(myMap).bindPopup(`<b>${s["Store Chain"]}</b><br>${s.CITY}, ${s.street || ''}`);
+                }
+            });
         }
         
-        stores.forEach(s => {
-            if(s.__LATITUDE && s.__LONGITUDE) {
-                let c = s["Store classification"] === 'S' ? '#ef4444' : (s["Store classification"] === 'A' ? '#f59e0b' : '#10b981');
-                L.circleMarker([s.__LATITUDE, s.__LONGITUDE], { color: c, fillColor: c, fillOpacity: 0.8, radius: 6 }).addTo(myMap).bindPopup(`<b>${s["Store Chain"]}</b><br>${s.CITY}, ${s.street || ''}`);
-            }
-        });
+        // Wymuszone odświeżenie rozmiaru mapy po pokazaniu kontenera!
+        setTimeout(() => { if(myMap) myMap.invalidateSize(); }, 300);
     }
 
     window.initReportMap = function(selectedMonth) {
@@ -1361,7 +1330,9 @@
         } else {
             if(window.reportPolylines) window.reportPolylines.forEach(p => reportMap.removeLayer(p));
         }
-        reportMap.invalidateSize();
+        
+        // Wymuszone odświeżenie rozmiaru mapy
+        setTimeout(() => { if(reportMap) reportMap.invalidateSize(); }, 300);
         
         let monthlyRoutes = JSON.parse(localStorage.getItem('tcl_routes_' + selectedMonth) || '[]');
         
@@ -1419,7 +1390,7 @@
             </tr>`;
         });
         
-        setTimeout(() => initReportMap(selectedMonth), 150);
+        setTimeout(() => initReportMap(selectedMonth), 50);
     }
 
     function switchTab(viewId, el) {
@@ -1431,7 +1402,7 @@
         if(viewId === 'view-reports') loadReports();
         if(viewId === 'view-overdue') loadOverdue();
         if(viewId === 'view-budget') loadBudget();
-        if(viewId === 'view-map') setTimeout(initMap, 150);
+        if(viewId === 'view-map') setTimeout(initMap, 50); 
         window.scrollTo(0,0);
     }
 </script>
